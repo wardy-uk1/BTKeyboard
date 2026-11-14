@@ -212,6 +212,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
                 }
             }
             .setPositiveButton("Done", null)
+            .setNeutralButton("About") { _, _ -> AboutDialog.show(this) }
             .show()
     }
 

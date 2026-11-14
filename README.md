@@ -9,6 +9,10 @@ Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/r
 
 ## What's new
 
+### v1.2 (14 Nov 2026)
+- New **About** page (⚙ settings › About) with the version, quick help, what's new and licence.
+- The in-app what's new is copied from this README at build time, so the two always match.
+
 ### v1.1 (14 Nov 2026)
 - Fixed: keys could take a second or more to appear on the PC.
 - The app now asks Bluetooth for a guaranteed low-latency link instead of best effort.
