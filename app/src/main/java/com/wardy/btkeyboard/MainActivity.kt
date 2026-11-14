@@ -48,7 +48,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        hid = HidKeyboard(applicationContext, this)
+        hid = HidKeyboard(applicationContext, this).apply { lowLatency = prefs.getBoolean("low_latency", true) }
         keyboard = KeyboardView(this).apply {
             engine = KeyEngine { mods, keys -> hid.send(mods, keys) }.also { it.onStateChanged = { invalidate() } }
             layout = Layouts.byId(prefs.getString("layout", Layouts.UK_COMPACT))
@@ -201,13 +201,14 @@ class MainActivity : Activity(), HidKeyboard.Listener {
     }
 
     private fun showSettingsDialog() {
-        val labels = arrayOf("Vibrate on key press", "Key click sound")
-        val checked = booleanArrayOf(keyboard.hapticsEnabled, keyboard.soundEnabled)
+        val labels = arrayOf("Vibrate on key press", "Key click sound", "Low-latency mode (uses a little more battery)")
+        val checked = booleanArrayOf(keyboard.hapticsEnabled, keyboard.soundEnabled, hid.lowLatency)
         dialog().setTitle("Settings")
             .setMultiChoiceItems(labels, checked) { _, which, on ->
                 when (which) {
                     0 -> { keyboard.hapticsEnabled = on; prefs.edit().putBoolean("haptics", on).apply() }
                     1 -> { keyboard.soundEnabled = on; prefs.edit().putBoolean("sound", on).apply() }
+                    2 -> { hid.lowLatency = on; prefs.edit().putBoolean("low_latency", on).apply() }
                 }
             }
             .setPositiveButton("Done", null)
@@ -235,9 +236,15 @@ class MainActivity : Activity(), HidKeyboard.Listener {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        hid.setForeground(true)
+    }
+
     override fun onPause() {
         super.onPause()
         keyboard.releaseAll()   // never leave a key stuck down on the PC
+        hid.setForeground(false)
     }
 
     override fun onDestroy() {

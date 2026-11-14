@@ -4,13 +4,17 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
+import android.bluetooth.BluetoothHidDeviceAppQosSettings
 import android.bluetooth.BluetoothHidDeviceAppSdpSettings
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
 
 /**
  * Makes the phone appear to Windows as a standard Bluetooth keyboard using Android's
@@ -29,7 +33,19 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
 
     private val adapter: BluetoothAdapter? = context.getSystemService(BluetoothManager::class.java)?.adapter
     private val prefs = context.getSharedPreferences("bt", Context.MODE_PRIVATE)
-    private val executor = Executors.newSingleThreadExecutor()
+    /** One thread for every report so they always reach the PC in order. */
+    private val executor = Executors.newSingleThreadScheduledExecutor()
+    @Volatile private var lastSendAt = 0L
+    private var keepAlive: ScheduledFuture<*>? = null
+
+    /**
+     * Low-latency mode: while connected and the app is on screen, re-send the current key state
+     * every few hundred ms. That stops the Bluetooth link dropping into power-saving sniff mode,
+     * where each key press waits for the radio's next wake-up (often a second or more).
+     */
+    var lowLatency = true
+        set(v) { field = v; updateKeepAlive() }
+    private var foreground = false
     private val main = Handler(Looper.getMainLooper())
 
     private var hid: BluetoothHidDevice? = null
@@ -59,6 +75,7 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
             }
         } catch (_: Exception) {}
         hid = null; registered = false; host = null
+        keepAlive?.cancel(false); keepAlive = null
     }
 
     fun bondedDevices(): List<BluetoothDevice> =
@@ -94,8 +111,23 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
         executor.execute { sendRaw(d, r) }
     }
 
+    /** Call from the activity's onResume/onPause so the keep-alive only runs while the keyboard is in use. */
+    fun setForeground(fg: Boolean) { foreground = fg; updateKeepAlive() }
+
+    private fun updateKeepAlive() {
+        val want = lowLatency && foreground && host != null
+        if (want && keepAlive == null) {
+            keepAlive = executor.scheduleWithFixedDelay({
+                val d = host ?: return@scheduleWithFixedDelay
+                if (SystemClock.uptimeMillis() - lastSendAt >= KEEPALIVE_MS) sendRaw(d, lastReport)
+            }, KEEPALIVE_MS, KEEPALIVE_MS, TimeUnit.MILLISECONDS)
+        } else if (!want) {
+            keepAlive?.cancel(false); keepAlive = null
+        }
+    }
+
     private fun sendRaw(device: BluetoothDevice, report: ByteArray) {
-        try { hid?.sendReport(device, REPORT_ID, report) } catch (_: Exception) {}
+        try { hid?.sendReport(device, REPORT_ID, report); lastSendAt = SystemClock.uptimeMillis() } catch (_: Exception) {}
     }
 
     private fun register() {
@@ -104,7 +136,11 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
             "Phone Keyboard", "Full-screen phone keyboard", "BT Keyboard",
             BluetoothHidDevice.SUBCLASS1_KEYBOARD, DESCRIPTOR
         )
-        if (!h.registerApp(sdp, null, null, executor, callback)) {
+        // Ask the Bluetooth stack for a guaranteed, low-latency channel (11.25 ms) instead of best effort.
+        val qos = BluetoothHidDeviceAppQosSettings(
+            BluetoothHidDeviceAppQosSettings.SERVICE_GUARANTEED, 800, 9, 0, 11250, 11250
+        )
+        if (!h.registerApp(sdp, null, qos, executor, callback)) {
             listener.onMessage("Couldn't register as a keyboard. Another app may be using the Bluetooth keyboard feature.")
         }
     }
@@ -138,10 +174,11 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
                     host = device
                     prefs.edit().putString(KEY_LAST, device.address).apply()
                     setState(State.CONNECTED, device)
+                    main.post { updateKeepAlive() }
                 }
                 BluetoothProfile.STATE_CONNECTING -> setState(State.CONNECTING, device)
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    if (host == null || host == device) { host = null; setState(State.READY) }
+                    if (host == null || host == device) { host = null; setState(State.READY); main.post { updateKeepAlive() } }
                 }
             }
         }
@@ -175,6 +212,7 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
     companion object {
         private const val KEY_LAST = "last_host"
         private const val REPORT_ID = 1
+        private const val KEEPALIVE_MS = 250L
 
         /** Standard boot keyboard with report ID 1: 8 modifier bits, 1 reserved byte, 5 LED bits out, 6 key slots. */
         val DESCRIPTOR = byteArrayOf(

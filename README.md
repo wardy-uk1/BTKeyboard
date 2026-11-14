@@ -9,6 +9,11 @@ Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/r
 
 ## What's new
 
+### v1.1 (14 Nov 2026)
+- Fixed: keys could take a second or more to appear on the PC.
+- The app now asks Bluetooth for a guaranteed low-latency link instead of best effort.
+- New **Low-latency mode** (Settings, on by default) keeps the Bluetooth link awake while the keyboard is on screen, so keys don't wait for the radio to wake up. It switches itself off when you leave the app.
+
 ### v1.0 (14 Nov 2026)
 - First release.
 - Phone pairs with Windows as a standard Bluetooth keyboard; nothing to install on the PC.
