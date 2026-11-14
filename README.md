@@ -7,6 +7,17 @@ A full-screen, landscape keyboard for Android that pairs with Windows as a **nor
 ## Download
 Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/releases/latest/download/BTKeyboard.apk)** (open this link on your phone and allow installs from your browser).
 
+## Security checks
+When v1.5 (2.1 MB) was installed from this page on an Android phone, both scanners passed it:
+- **Google Play Protect:** scanned the APK before installing and reported *"This app looks safe"*.
+- **The phone's built-in security scanner:** passed it on all three checks: virus scan (no viruses found), counterfeit app check (app is legitimate) and other risks (none found).
+
+<p>
+  <img src="docs/play-protect-scan.jpg" alt="Google Play Protect: This app looks safe" width="260">
+  &nbsp;
+  <img src="docs/security-scan.jpg" alt="Phone security scan: passed security tests, no risks detected" width="260">
+</p>
+
 ## What's new
 
 ### v1.5 (14 Nov 2026)
