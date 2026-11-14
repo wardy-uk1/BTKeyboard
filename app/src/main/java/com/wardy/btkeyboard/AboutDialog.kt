@@ -39,6 +39,8 @@ object AboutDialog {
         line("• Fn (UK compact): hold or tap Fn for the blue legends: F1–F12 on the number row, Del on Backspace, Home/End/PgUp/PgDn on the arrows, Ins on I, PrtSc on P, Menu on M, ` on Esc.")
         line("• Shift, Ctrl, Alt, Win, AltGr, Fn: hold them like a real keyboard, or tap once to apply to the next key (blue outline). Double-tap to lock (solid blue), tap again to release.")
         line("• Caps Lock: a green dot on the key shows it's on.")
+        line("• Gaming (LED): pick it under Layout. Change the lighting in ⚙ settings › Lighting. Slide a finger between keys without lifting.")
+        line("• Controller: pick Classic, Twin Stick or Neon RGB under Layout. Windows sees a standard game controller; in Steam it works in any game, and Steam can make it act like an Xbox controller.")
         line("• Slow keys? Make sure Low-latency mode is on in ⚙ settings.")
 
         heading("What's new")

@@ -52,6 +52,7 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
     @Volatile private var host: BluetoothDevice? = null
     private var registered = false
     @Volatile private var lastReport = ByteArray(8)
+    @Volatile private var lastPad = GamepadState.NEUTRAL.toReport()
 
     var state = State.STARTING; private set
     val connectedDevice get() = host
@@ -111,6 +112,16 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
         executor.execute { sendRaw(d, r) }
     }
 
+    /** Send the controller state as report ID 2. */
+    fun sendGamepad(state: GamepadState) {
+        val r = state.toReport()
+        lastPad = r
+        val d = host ?: return
+        executor.execute {
+            try { hid?.sendReport(d, PAD_REPORT_ID, r); lastSendAt = SystemClock.uptimeMillis() } catch (_: Exception) {}
+        }
+    }
+
     /** Call from the activity's onResume/onPause so the keep-alive only runs while the keyboard is in use. */
     fun setForeground(fg: Boolean) { foreground = fg; updateKeepAlive() }
 
@@ -133,7 +144,7 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
     private fun register() {
         val h = hid ?: return
         val sdp = BluetoothHidDeviceAppSdpSettings(
-            "Phone Keyboard", "Full-screen phone keyboard", "BT Keyboard",
+            "Phone Keyboard", "Phone keyboard and controller", "BT Keyboard",
             BluetoothHidDevice.SUBCLASS1_KEYBOARD, DESCRIPTOR
         )
         // Standard best-effort channel with room for bursts. (v1.1 asked for a "guaranteed" channel
@@ -190,7 +201,7 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
         }
 
         override fun onGetReport(device: BluetoothDevice, type: Byte, id: Byte, bufferSize: Int) {
-            hid?.replyReport(device, type, id, lastReport)
+            hid?.replyReport(device, type, id, if (id.toInt() == PAD_REPORT_ID) lastPad else lastReport)
         }
 
         override fun onSetReport(device: BluetoothDevice, type: Byte, id: Byte, data: ByteArray) {
@@ -219,6 +230,7 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
         private const val KEY_LAST = "last_host"
         private const val REPORT_ID = 1
         private const val KEEPALIVE_MS = 250L
+        private const val PAD_REPORT_ID = 2
 
         /** Standard boot keyboard with report ID 1: 8 modifier bits, 1 reserved byte, 5 LED bits out, 6 key slots. */
         val DESCRIPTOR = byteArrayOf(
@@ -254,6 +266,52 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
             0x19, 0x00,             //   Usage Min (0)
             0x29, 0x65,             //   Usage Max (101)
             0x81.toByte(), 0x00,    //   Input (Data, Array) - keys
+            0xC0.toByte(),          // End Collection
+
+            // ---- Game controller, report ID 2: 16 buttons, hat, 2 sticks, 2 triggers ----
+            0x05, 0x01,             // Usage Page (Generic Desktop)
+            0x09, 0x05,             // Usage (Game Pad)
+            0xA1.toByte(), 0x01,    // Collection (Application)
+            0x85.toByte(), 0x02,    //   Report ID (2)
+            0x05, 0x09,             //   Usage Page (Button)
+            0x19, 0x01,             //   Usage Min (1)
+            0x29, 0x10,             //   Usage Max (16)
+            0x15, 0x00,             //   Logical Min (0)
+            0x25, 0x01,             //   Logical Max (1)
+            0x75, 0x01,             //   Report Size (1)
+            0x95.toByte(), 0x10,    //   Report Count (16)
+            0x81.toByte(), 0x02,    //   Input (Data, Var, Abs)
+            0x05, 0x01,             //   Usage Page (Generic Desktop)
+            0x09, 0x39,             //   Usage (Hat switch)
+            0x15, 0x00,             //   Logical Min (0)
+            0x25, 0x07,             //   Logical Max (7)
+            0x35, 0x00,             //   Physical Min (0)
+            0x46, 0x3B, 0x01,       //   Physical Max (315)
+            0x65, 0x14,             //   Unit (Degrees)
+            0x75, 0x04,             //   Report Size (4)
+            0x95.toByte(), 0x01,    //   Report Count (1)
+            0x81.toByte(), 0x42,    //   Input (Data, Var, Abs, Null state)
+            0x65, 0x00,             //   Unit (None)
+            0x45, 0x00,             //   Physical Max (0)
+            0x75, 0x04,             //   Report Size (4)
+            0x95.toByte(), 0x01,    //   Report Count (1)
+            0x81.toByte(), 0x01,    //   Input (Const) - padding
+            0x09, 0x30,             //   Usage (X)  left stick
+            0x09, 0x31,             //   Usage (Y)  left stick
+            0x09, 0x33,             //   Usage (Rx) right stick
+            0x09, 0x34,             //   Usage (Ry) right stick
+            0x15, 0x81.toByte(),    //   Logical Min (-127)
+            0x25, 0x7F,             //   Logical Max (127)
+            0x75, 0x08,             //   Report Size (8)
+            0x95.toByte(), 0x04,    //   Report Count (4)
+            0x81.toByte(), 0x02,    //   Input (Data, Var, Abs)
+            0x09, 0x32,             //   Usage (Z)  left trigger
+            0x09, 0x35,             //   Usage (Rz) right trigger
+            0x15, 0x00,             //   Logical Min (0)
+            0x26, 0xFF.toByte(), 0x00, // Logical Max (255)
+            0x75, 0x08,             //   Report Size (8)
+            0x95.toByte(), 0x02,    //   Report Count (2)
+            0x81.toByte(), 0x02,    //   Input (Data, Var, Abs)
             0xC0.toByte()           // End Collection
         )
     }

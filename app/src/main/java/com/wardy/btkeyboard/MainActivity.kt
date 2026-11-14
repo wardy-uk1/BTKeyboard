@@ -30,6 +30,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
 
     private lateinit var hid: HidKeyboard
     private lateinit var keyboard: KeyboardView
+    private lateinit var gamepad: GamepadView
     private lateinit var status: TextView
     private lateinit var dot: View
     private val prefs by lazy { getSharedPreferences("settings", MODE_PRIVATE) }
@@ -51,17 +52,25 @@ class MainActivity : Activity(), HidKeyboard.Listener {
         hid = HidKeyboard(applicationContext, this).apply { lowLatency = prefs.getBoolean("low_latency", true) }
         keyboard = KeyboardView(this).apply {
             engine = KeyEngine { mods, keys -> hid.send(mods, keys) }.also { it.onStateChanged = { invalidate() } }
-            layout = Layouts.byId(prefs.getString("layout", Layouts.UK_COMPACT))
             hapticsEnabled = prefs.getBoolean("haptics", true)
             soundEnabled = prefs.getBoolean("sound", false)
             rgbEffect = KeyboardView.RgbEffect.entries.getOrElse(prefs.getInt("rgb_effect", 0)) { KeyboardView.RgbEffect.WAVE }
         }
 
+        gamepad = GamepadView(this).apply {
+            onState = { hid.sendGamepad(it) }
+            hapticsEnabled = keyboard.hapticsEnabled
+        }
+        val stage = android.widget.FrameLayout(this).apply {
+            addView(keyboard); addView(gamepad)
+        }
+        applyLayout(prefs.getString("layout", Layouts.UK_COMPACT))
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF121418.toInt())
             addView(buildTopBar(), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (34 * dp).toInt()))
-            addView(keyboard, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(stage, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         }
         setContentView(root)
         registerReceiver(btReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
@@ -135,7 +144,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
             if (state == HidKeyboard.State.BLUETOOTH_OFF) startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
             else showConnectDialog()
         }
-        if (state != HidKeyboard.State.CONNECTED) keyboard.releaseAll()
+        if (state != HidKeyboard.State.CONNECTED) { keyboard.releaseAll(); gamepad.releaseAll() }
     }
 
     override fun onLedsChanged(leds: Int) { keyboard.capsLockOn = leds and 0x02 != 0 }
@@ -188,13 +197,28 @@ class MainActivity : Activity(), HidKeyboard.Listener {
             .setPositiveButton("OK", null).show()
     }
 
+    /** Shows either a keyboard layout or one of the controller skins. */
+    private fun applyLayout(id: String?) {
+        val skin = GamepadView.Skin.byId(id)
+        if (skin != null) {
+            keyboard.releaseAll()
+            gamepad.skin = skin
+            gamepad.visibility = View.VISIBLE; keyboard.visibility = View.GONE
+        } else {
+            gamepad.releaseAll()
+            keyboard.layout = Layouts.byId(id)
+            keyboard.visibility = View.VISIBLE; gamepad.visibility = View.GONE
+        }
+    }
+
     private fun showLayoutDialog() {
-        val all = Layouts.all
-        val current = all.indexOfFirst { it.id == keyboard.layout.id }
-        dialog().setTitle("Keyboard layout")
-            .setSingleChoiceItems(all.map { it.title }.toTypedArray(), current) { d, which ->
-                keyboard.layout = all[which]
-                prefs.edit().putString("layout", all[which].id).apply()
+        val ids = Layouts.all.map { it.id } + GamepadView.Skin.entries.map { it.id }
+        val titles = Layouts.all.map { it.title } + GamepadView.Skin.entries.map { it.title }
+        val current = ids.indexOf(prefs.getString("layout", Layouts.UK_COMPACT)).coerceAtLeast(0)
+        dialog().setTitle("Keyboard or controller")
+            .setSingleChoiceItems(titles.toTypedArray(), current) { d, which ->
+                applyLayout(ids[which])
+                prefs.edit().putString("layout", ids[which]).apply()
                 d.dismiss()
             }
             .setNegativeButton("Cancel", null)
@@ -207,7 +231,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
         dialog().setTitle("Settings")
             .setMultiChoiceItems(labels, checked) { _, which, on ->
                 when (which) {
-                    0 -> { keyboard.hapticsEnabled = on; prefs.edit().putBoolean("haptics", on).apply() }
+                    0 -> { keyboard.hapticsEnabled = on; gamepad.hapticsEnabled = on; prefs.edit().putBoolean("haptics", on).apply() }
                     1 -> { keyboard.soundEnabled = on; prefs.edit().putBoolean("sound", on).apply() }
                     2 -> { hid.lowLatency = on; prefs.edit().putBoolean("low_latency", on).apply() }
                 }
@@ -259,6 +283,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
     override fun onPause() {
         super.onPause()
         keyboard.releaseAll()   // never leave a key stuck down on the PC
+        gamepad.releaseAll()
         hid.setForeground(false)
     }
 

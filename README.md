@@ -9,6 +9,11 @@ Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/r
 
 ## What's new
 
+### v1.5 (14 Nov 2026)
+- New **controller mode** with three skins: Classic, Twin Stick and Neon RGB (Layout button). Two analog sticks, D-pad, A/B/X/Y, LB/RB, LT/RT, View, Menu and Home.
+- Windows sees it as a standard game controller. Steam supports it in any game and can present it as an Xbox controller.
+- **Re-pair needed once:** after updating, remove the phone in Windows Bluetooth settings and pair again so Windows picks up the controller.
+
 ### v1.4 (14 Nov 2026)
 - New **Gaming (LED)** layout: big WASD block for your left hand, number keys 1–0, and U/I/O/P, J/K/L/M, N, Enter and arrows on the right.
 - RGB key lighting with four effects: rainbow wave, static rainbow, reactive (keys light up when pressed) and solid cyan. Change it in ⚙ settings › Lighting.
@@ -48,6 +53,7 @@ Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/r
 - **US full**
 - **UK full + numpad**
 - **Gaming (LED)**: big keys for WASD games, RGB lighting and slide-between-keys.
+- **Controller – Classic / Twin Stick / Neon RGB**: on-screen game controller.
 
 ![Gaming layout](gaming-preview.png)
 
