@@ -136,11 +136,17 @@ class HidKeyboard(private val context: Context, private val listener: Listener) 
             "Phone Keyboard", "Full-screen phone keyboard", "BT Keyboard",
             BluetoothHidDevice.SUBCLASS1_KEYBOARD, DESCRIPTOR
         )
-        // Ask the Bluetooth stack for a guaranteed, low-latency channel (11.25 ms) instead of best effort.
-        val qos = BluetoothHidDeviceAppQosSettings(
-            BluetoothHidDeviceAppQosSettings.SERVICE_GUARANTEED, 800, 9, 0, 11250, 11250
+        // Standard best-effort channel with room for bursts. (v1.1 asked for a "guaranteed" channel
+        // whose 9-byte burst limit was smaller than one key report, which some chips throttle.)
+        val outQos = BluetoothHidDeviceAppQosSettings(
+            BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT, 800, 32, 2000,
+            BluetoothHidDeviceAppQosSettings.MAX, BluetoothHidDeviceAppQosSettings.MAX
         )
-        if (!h.registerApp(sdp, null, qos, executor, callback)) {
+        val inQos = BluetoothHidDeviceAppQosSettings(
+            BluetoothHidDeviceAppQosSettings.SERVICE_BEST_EFFORT, 0, 0, 0,
+            BluetoothHidDeviceAppQosSettings.MAX, BluetoothHidDeviceAppQosSettings.MAX
+        )
+        if (!h.registerApp(sdp, inQos, outQos, executor, callback)) {
             listener.onMessage("Couldn't register as a keyboard. Another app may be using the Bluetooth keyboard feature.")
         }
     }

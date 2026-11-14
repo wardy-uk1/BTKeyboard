@@ -11,8 +11,8 @@ android {
         applicationId = "com.wardy.btkeyboard"
         minSdk = 28          // Android 9: first version with the Bluetooth HID device API
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
     }
 
     buildTypes {

@@ -9,6 +9,10 @@ Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/r
 
 ## What's new
 
+### v1.3 (14 Nov 2026)
+- Changed the Bluetooth connection settings to the standard "best effort" profile with room for bursts. The v1.1 settings could make some phones hold key presses back.
+- Low-latency mode (keep-alive) is still available in ⚙ settings.
+
 ### v1.2 (14 Nov 2026)
 - New **About** page (⚙ settings › About) with the version, quick help, what's new and licence.
 - The in-app what's new is copied from this README at build time, so the two always match.
