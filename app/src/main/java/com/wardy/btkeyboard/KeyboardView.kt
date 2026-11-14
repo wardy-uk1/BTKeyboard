@@ -23,6 +23,13 @@ class KeyboardView(context: Context) : View(context) {
     var capsLockOn = false
         set(v) { field = v; invalidate() }
 
+    /** Lighting for gaming layouts. */
+    enum class RgbEffect(val title: String) { WAVE("Rainbow wave"), RAINBOW("Static rainbow"), REACTIVE("Reactive (lights up when pressed)"), SOLID("Solid cyan") }
+    var rgbEffect = RgbEffect.WAVE
+        set(v) { field = v; invalidate() }
+    private val pressTimes = HashMap<PlacedKey, Long>()
+    private val hsv = FloatArray(3)
+
     var layout: KeyboardLayout = Layouts.byId(null)
         set(v) { engine?.releaseAll(); field = v; pointerKeys.clear(); computeKeys(); invalidate() }
 
@@ -81,6 +88,101 @@ class KeyboardView(context: Context) : View(context) {
     }
 
     override fun onDraw(canvas: Canvas) {
+        if (layout.gaming) drawRgb(canvas) else drawNormal(canvas)
+    }
+
+    // ---------- LED gaming look ----------
+    private val rgbFill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val rgbStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val rgbText = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.DEFAULT_BOLD }
+
+    private fun hueColor(h: Float, v: Float = 1f): Int {
+        hsv[0] = ((h % 360f) + 360f) % 360f; hsv[1] = 0.85f; hsv[2] = v
+        return Color.HSVToColor(hsv)
+    }
+
+    private fun drawRgb(canvas: Canvas) {
+        canvas.drawColor(0xFF050608.toInt())
+        val e = engine
+        val now = android.os.SystemClock.uptimeMillis()
+        val t = now / 1000f
+        val held = pointerKeys.values.map { it.first }.toSet()
+        val fn = e?.fnActive == true
+        val shift = e?.shiftActive == true
+        var animating = rgbEffect == RgbEffect.WAVE
+        rgbStroke.strokeWidth = 1.6f * dp
+        rgbText.textSize = textPaint.textSize
+        for (pk in keys) {
+            val d = pk.def; val r = pk.rect
+            val radius = min(r.height(), r.width()) * 0.16f
+            val pos = r.centerX() / width.coerceAtLeast(1) * 300f + r.centerY() / height.coerceAtLeast(1) * 40f
+            // Glow strength 0..1 and colour per effect.
+            var level = 1f
+            val color = when (rgbEffect) {
+                RgbEffect.WAVE -> hueColor(pos - t * 120f)
+                RgbEffect.RAINBOW -> hueColor(pos)
+                RgbEffect.SOLID -> 0xFF3BE8FF.toInt()
+                RgbEffect.REACTIVE -> {
+                    val since = pressTimes[pk]?.let { now - it } ?: Long.MAX_VALUE
+                    level = when {
+                        pk in held -> 1f
+                        since < FADE_MS -> { animating = true; 1f - since / FADE_MS.toFloat() }
+                        else -> 0f
+                    }
+                    hueColor(pos)
+                }
+            }
+            val isDown = pk in held
+            val modState = if (d.kind == KeyKind.MODIFIER && e != null) when {
+                e.locked and d.modBit != 0 -> 2; e.latched and d.modBit != 0 -> 1; else -> 0 } else 0
+            val glow = maxOf(level, if (modState > 0) 1f else 0f)
+
+            rgbFill.color = when {
+                isDown || modState == 2 -> blend(0xFF0A0B10.toInt(), color, 0.55f)
+                else -> blend(0xFF0A0B10.toInt(), color, 0.08f * glow)
+            }
+            canvas.drawRoundRect(r, radius, radius, rgbFill)
+
+            val edge = if (glow > 0.01f) blend(0xFF1C2230.toInt(), color, glow) else 0xFF1C2230.toInt()
+            rgbStroke.color = edge
+            if (glow > 0.01f) rgbStroke.setShadowLayer(7 * dp * glow, 0f, 0f, edge) else rgbStroke.clearShadowLayer()
+            rgbStroke.strokeWidth = (if (modState == 1) 2.6f else 1.6f) * dp
+            canvas.drawRoundRect(r, radius, radius, rgbStroke)
+
+            val legend = when {
+                isDown -> Color.WHITE
+                glow > 0.01f -> blend(0xFF7D8BA0.toInt(), blend(color, Color.WHITE, 0.25f), glow)
+                else -> 0xFF7D8BA0.toInt()
+            }
+            if (glow > 0.3f && !isDown) rgbText.setShadowLayer(5 * dp * glow, 0f, 0f, color) else rgbText.clearShadowLayer()
+            val label = when {
+                fn && d.fnLabel != null -> d.fnLabel
+                shift && d.shiftLabel != null -> d.shiftLabel
+                else -> d.label
+            }
+            rgbText.color = legend
+            rgbText.textSize = if (label.length > 2) subPaint.textSize else textPaint.textSize
+            canvas.drawText(label, r.centerX(), r.centerY() - (rgbText.descent() + rgbText.ascent()) / 2, rgbText)
+            if (!fn && d.fnLabel != null) {
+                fnPaint.color = blend(0xFF55627A.toInt(), color, glow * 0.8f)
+                canvas.drawText(d.fnLabel, r.right - 4 * dp, r.bottom - 4 * dp, fnPaint)
+            }
+            if (d.isCaps && capsLockOn) {
+                rgbFill.color = Color.WHITE
+                canvas.drawCircle(r.left + 8 * dp, r.top + 8 * dp, 3.5f * dp, rgbFill)
+            }
+        }
+        if (animating) postInvalidateDelayed(FRAME_MS)
+    }
+
+    private fun blend(a: Int, b: Int, f: Float): Int {
+        val k = f.coerceIn(0f, 1f)
+        fun ch(sh: Int) = (((a shr sh) and 0xFF) * (1 - k) + ((b shr sh) and 0xFF) * k).toInt()
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
+
+    // ---------- normal look ----------
+    private fun drawNormal(canvas: Canvas) {
         val e = engine
         val pressedKeys = pointerKeys.values.map { it.first }.toSet()
         val fn = e?.fnActive == true
@@ -167,10 +269,12 @@ class KeyboardView(context: Context) : View(context) {
                 val d = pk.def
                 val code = if (d.kind == KeyKind.MODIFIER) 0 else if (e.fnActive && d.fnCode != null) d.fnCode else d.code
                 pointerKeys[ev.getPointerId(i)] = pk to code
+                pressTimes[pk] = android.os.SystemClock.uptimeMillis()
                 if (d.kind == KeyKind.MODIFIER) e.modDown(d.modBit) else e.keyDown(code)
                 feedback(d)
                 invalidate()
             }
+            MotionEvent.ACTION_MOVE -> if (layout.gaming) slide(ev, e)
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 release(ev.getPointerId(ev.actionIndex))
             }
@@ -179,6 +283,24 @@ class KeyboardView(context: Context) : View(context) {
             }
         }
         return true
+    }
+
+    /** Gaming layouts: a finger rolling onto another key releases the old key and presses the new one. */
+    private fun slide(ev: MotionEvent, e: KeyEngine) {
+        for (i in 0 until ev.pointerCount) {
+            val id = ev.getPointerId(i)
+            val (cur, _) = pointerKeys[id] ?: continue
+            if (cur.def.kind == KeyKind.MODIFIER || cur.rect.contains(ev.getX(i), ev.getY(i))) continue
+            val next = keys.firstOrNull { it.rect.contains(ev.getX(i), ev.getY(i)) } ?: continue
+            if (next.def.kind == KeyKind.MODIFIER) continue
+            release(id)
+            val code = if (e.fnActive && next.def.fnCode != null) next.def.fnCode else next.def.code
+            pointerKeys[id] = next to code
+            pressTimes[next] = android.os.SystemClock.uptimeMillis()
+            e.keyDown(code)
+            feedback(next.def)
+            invalidate()
+        }
     }
 
     private fun release(pointerId: Int) {
@@ -209,5 +331,9 @@ class KeyboardView(context: Context) : View(context) {
         }
     }
 
-    companion object { val ACCENT = 0xFF1E88E5.toInt() }
+    companion object {
+        val ACCENT = 0xFF1E88E5.toInt()
+        private const val FADE_MS = 700L
+        private const val FRAME_MS = 33L   // ~30 fps lighting animation
+    }
 }

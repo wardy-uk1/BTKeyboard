@@ -42,7 +42,8 @@ data class KeyDef(
     val isCaps: Boolean = false,
 )
 
-class KeyboardLayout(val id: String, val title: String, val rows: List<List<KeyDef>>)
+/** [gaming] = RGB lighting and slide-between-keys (roll a finger from W to A without lifting). */
+class KeyboardLayout(val id: String, val title: String, val rows: List<List<KeyDef>>, val gaming: Boolean = false)
 
 private fun k(label: String, code: Int, w: Float = 1f, shift: String? = null, fn: Int? = null, fnLabel: String? = null, span: Int = 1) =
     KeyDef(label, code, w, shift, KeyKind.NORMAL, 0, fn, fnLabel, span)
@@ -56,6 +57,7 @@ object Layouts {
     const val UK_FULL = "uk_full"
     const val US_FULL = "us_full"
     const val UK_FULL_NUMPAD = "uk_full_numpad"
+    const val GAMING = "gaming"
 
     // ---------- shared pieces ----------
     private val ukShift = mapOf(1 to "!", 2 to "\"", 3 to "£", 4 to "$", 5 to "%", 6 to "^", 7 to "&", 8 to "*", 9 to "(", 0 to ")")
@@ -176,11 +178,44 @@ object Layouts {
         return KeyboardLayout(id, title, left.indices.map { left[it] + nav[it] + pad[it] })
     }
 
+    // ---------- Gaming: big left-hand block + right-hand extras, 13 units, RGB ----------
+    private val gaming = KeyboardLayout(
+        GAMING, "Gaming (LED)",
+        listOf(
+            listOf(k("Esc", Hid.ESC, 1.5f, fn = Hid.GRAVE, fnLabel = "`")) +
+                (1..6).map { k("$it", Hid.digit(it), shift = ukShift[it], fn = Hid.f(it), fnLabel = "F$it") } +
+                listOf(gap(0.5f)) +
+                listOf(7, 8, 9, 0).map { d -> k("$d", Hid.digit(d), shift = ukShift[d], fn = Hid.f(if (d == 0) 10 else d), fnLabel = "F${if (d == 0) 10 else d}") } +
+                listOf(k("⌫", Hid.BKSP, fn = Hid.DEL, fnLabel = "Del")),
+            listOf(k("Tab", Hid.TAB, 1.5f)) + letters("qwerty") + listOf(gap(0.5f)) +
+                listOf(
+                    k("U", Hid.letter('u'), fn = Hid.f(11), fnLabel = "F11"),
+                    k("I", Hid.letter('i'), fn = Hid.f(12), fnLabel = "F12"),
+                    k("O", Hid.letter('o')),
+                    k("P", Hid.letter('p'), fn = Hid.PRTSC, fnLabel = "PrtSc"),
+                    k("Enter", Hid.ENTER, span = 2),
+                ),
+            listOf(caps(1.5f)) + letters("asdfgh") + listOf(gap(0.5f)) + letters("jklm") + listOf(gap(1f)),
+            listOf(mod("Shift", Hid.M_LSHIFT, 2.5f)) + letters("zxcvb") + listOf(gap(0.5f)) +
+                listOf(
+                    k("N", Hid.letter('n')), k(",", Hid.COMMA, shift = "<"), k(".", Hid.DOT, shift = ">"),
+                    k("↑", Hid.UP, fn = Hid.PGUP, fnLabel = "PgUp"), k("/", Hid.SLASH, shift = "?"),
+                ),
+            listOf(mod("Ctrl", Hid.M_LCTRL, 1.5f), mod("Alt", Hid.M_LALT, 1.25f), k("", Hid.SPACE, 4.75f), gap(0.5f),
+                mod("Fn", Hid.M_FN, 1f), mod("Ctrl", Hid.M_RCTRL, 1f),
+                k("←", Hid.LEFT, fn = Hid.HOME, fnLabel = "Home"),
+                k("↓", Hid.DOWN, fn = Hid.PGDN, fnLabel = "PgDn"),
+                k("→", Hid.RIGHT, fn = Hid.END, fnLabel = "End")),
+        ),
+        gaming = true,
+    )
+
     val all: List<KeyboardLayout> = listOf(
         ukCompact,
         full(UK_FULL, "UK full", ukMain(), false),
         full(US_FULL, "US full", usMain(), false),
         full(UK_FULL_NUMPAD, "UK full + numpad", ukMain(), true),
+        gaming,
     )
 
     fun byId(id: String?): KeyboardLayout = all.firstOrNull { it.id == id } ?: ukCompact

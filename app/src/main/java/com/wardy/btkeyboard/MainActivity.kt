@@ -54,6 +54,7 @@ class MainActivity : Activity(), HidKeyboard.Listener {
             layout = Layouts.byId(prefs.getString("layout", Layouts.UK_COMPACT))
             hapticsEnabled = prefs.getBoolean("haptics", true)
             soundEnabled = prefs.getBoolean("sound", false)
+            rgbEffect = KeyboardView.RgbEffect.entries.getOrElse(prefs.getInt("rgb_effect", 0)) { KeyboardView.RgbEffect.WAVE }
         }
 
         val root = LinearLayout(this).apply {
@@ -213,6 +214,19 @@ class MainActivity : Activity(), HidKeyboard.Listener {
             }
             .setPositiveButton("Done", null)
             .setNeutralButton("About") { _, _ -> AboutDialog.show(this) }
+            .setNegativeButton("Lighting") { _, _ -> showLightingDialog() }
+            .show()
+    }
+
+    private fun showLightingDialog() {
+        val effects = KeyboardView.RgbEffect.entries
+        dialog().setTitle("Gaming keyboard lighting")
+            .setSingleChoiceItems(effects.map { it.title }.toTypedArray(), keyboard.rgbEffect.ordinal) { d, which ->
+                keyboard.rgbEffect = effects[which]
+                prefs.edit().putInt("rgb_effect", which).apply()
+                d.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
