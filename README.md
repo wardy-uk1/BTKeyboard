@@ -4,6 +4,21 @@ A full-screen, landscape keyboard for Android that pairs with Windows as a **nor
 
 ![Compact UK layout](compact-preview.png)
 
+## Download
+Get the latest APK: **[BTKeyboard.apk](https://github.com/wardy-uk1/BTKeyboard/releases/latest/download/BTKeyboard.apk)** (open this link on your phone and allow installs from your browser).
+
+## What's new
+
+### v1.0 (14 Nov 2026)
+- First release.
+- Phone pairs with Windows as a standard Bluetooth keyboard; nothing to install on the PC.
+- Full-screen landscape keyboard with four layouts: UK compact (default), UK full, US full, UK full + numpad.
+- Fn layer on UK compact for F1–F12, Del, Home/End/PgUp/PgDn, Ins, PrtSc and Menu.
+- Multi-touch typing, key repeat, and sticky modifiers (tap once for next key, double-tap to lock).
+- Caps Lock indicator driven by the PC.
+- Auto-reconnects to the last PC; PC button to pair, switch or disconnect.
+- Vibration on key press (can be turned off) and optional click sound.
+
 ## Requirements
 - Android 9 or newer, and a phone whose Bluetooth supports the *HID device* profile (most Pixel, Samsung and Xiaomi phones do; a few makers strip it out — the app tells you if so).
 - Windows 10/11 with Bluetooth.
@@ -29,7 +44,7 @@ Holding any key auto-repeats (Windows does the repeat). Caps Lock shows a green 
 3. After that, the app reconnects to the last PC by itself when you open it. Tap **PC** to switch PCs or disconnect.
 
 ## Building
-- **GitHub**: push this folder to a GitHub repo; the included workflow builds `BTKeyboard.apk` and attaches it to a release called *Latest build*.
+- **GitHub**: every push to `main` builds `BTKeyboard.apk` and publishes it as a release named after `versionName` in `app/build.gradle.kts`, using that version's notes from *What's new*.
 - **Android Studio**: open the folder, then *Build › Build APK(s)*.
 
 ## Code map
@@ -41,3 +56,8 @@ Holding any key auto-repeats (Windows does the repeat). Caps Lock shows a green 
 
 ## Licence
 GPL-3.0. See [LICENSE](LICENSE).
+
+## Releasing a new version
+1. Bump `versionCode` and `versionName` in `app/build.gradle.kts`.
+2. Add a `### vX.Y (date)` entry at the top of *What's new*.
+3. Push to `main`; the release and APK are created automatically.
