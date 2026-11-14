@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple keyboard glyph on the 108dp adaptive-icon canvas -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M30,38h48a4,4 0 0 1 4,4v24a4,4 0 0 1 -4,4h-48a4,4 0 0 1 -4,-4v-24a4,4 0 0 1 4,-4z" />
+    <path android:fillColor="#FF1E88E5"
+        android:pathData="M32,44h6v6h-6zM41,44h6v6h-6zM50,44h6v6h-6zM59,44h6v6h-6zM68,44h8v6h-8zM32,53h8v6h-8zM43,53h6v6h-6zM52,53h6v6h-6zM61,53h6v6h-6zM70,53h6v6h-6zM38,62h32v4h-32z" />
+</vector>

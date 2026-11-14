@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.BTKeyboard" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <color name="bg">#FF121418</color>
+    <color name="icon_bg">#FF1E88E5</color>
+</resources>
